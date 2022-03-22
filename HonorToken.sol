@@ -1153,7 +1153,7 @@ contract HonorToken is ERC20Permit, Ownable {
 
         _gonsPerFragment = TOTAL_GONS.div(_totalSupply);
 
-        _storeRebase(circulatingSupply_, profit_, epoch_);
+        _storeRebase(circulatingSupply_, rebaseAmount, epoch_);
 
         return _totalSupply;
     }
