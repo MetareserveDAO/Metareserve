@@ -616,7 +616,8 @@ contract Treasury is PolicyManager {
         LIQUIDITYMANAGER,
         DEBTOR,
         REWARDMANAGER,
-        HONOR
+        HONOR,
+        DISTRIBUTOR
     }
 
     address public immutable POWER;
@@ -663,6 +664,10 @@ contract Treasury is PolicyManager {
     address[] public rewardManagers; // Push only, beware false-positives. Only for viewing.
     mapping(address => bool) public isRewardManager;
     mapping(address => uint256) public rewardManagerQueue; // Delays changes to mapping.
+    
+    address public staking;
+    address public distributor;
+    uint256 public distributorQueue;
 
     address public HONOR;
     uint256 public HONORQueue; // Delays change to HONOR address
@@ -848,7 +853,8 @@ contract Treasury is PolicyManager {
         @notice send epoch reward to staking contract
      */
     function mintRewards(address _recipient, uint256 _amount) external {
-        require(isRewardManager[msg.sender], "Not approved");
+        require(msg.sender == distributor, "Not approved");
+        require(_recipient == staking, "Not approved");
         require(_amount <= excessReserves(), "Insufficient reserves");
 
         IERC20Mutable(POWER).mint(_recipient, _amount);
@@ -936,6 +942,9 @@ contract Treasury is PolicyManager {
         } else if (_managing == MANAGING.HONOR) {
             // 9
             HONORQueue = block.number.add(blocksNeededForQueue);
+        } else if (_managing == MANAGING.HONOR) {
+            // 10
+            distributorQueue = block.number.add(blocksNeededForQueue);
         } else return false;
 
         emit ChangeQueued(_managing, _address);
@@ -1053,6 +1062,12 @@ contract Treasury is PolicyManager {
             // 9
             HONORQueue = 0;
             HONOR = _address;
+            result = true;
+        } else if (_managing == MANAGING.DISTRIBUTOR) {
+            // 9
+            distributorQueue = 0;
+            distributor = _address;
+            staking = _calculator;
             result = true;
         } else return false;
 
