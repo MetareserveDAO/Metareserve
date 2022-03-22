@@ -723,6 +723,7 @@ contract BondDepository is Ownable {
     address public staking; // to auto-stake payout
     address public stakingHelper; // to stake and claim if no staking warmup
     bool public useHelper;
+    address public bondHelper; // allow helper redeem user's bonds
 
     Terms public terms; // stores terms for new bonds
     Adjust public adjustment; // stores adjustment to BCV data
@@ -890,6 +891,10 @@ contract BondDepository is Ownable {
             staking = _staking;
         }
     }
+    
+    function setBondHelper(address _helper) external onlyPolicy {
+        bondHelper = _helper;
+    }
 
     /* ======== USER FUNCTIONS ======== */
 
@@ -908,7 +913,6 @@ contract BondDepository is Ownable {
         require(_depositor != address(0), "Invalid address");
 
         decayDebt();
-        require(totalDebt <= terms.maxDebt, "Max capacity reached");
 
         uint256 priceInUSD = bondPriceInUSD(); // Stored in bond info
         uint256 nativePrice = _bondPrice();
@@ -920,6 +924,8 @@ contract BondDepository is Ownable {
 
         require(payout >= 10000000, "Bond too small"); // must be > 0.01 POWER ( underflow protection )
         require(payout <= maxPayout(), "Bond too large"); // size protection because there is no slippage
+        
+        require(totalDebt.add(payout) <= terms.maxDebt, "Max capacity reached");
 
         // profits are calculated
         uint256 fee = payout.mul(terms.fee).div(10000);
@@ -965,6 +971,7 @@ contract BondDepository is Ownable {
      *  @return uint
      */
     function redeem(address _recipient, bool _stake) external returns (uint256) {
+        require(msg.sender == _recipient || msg.sender == bondHelper, "Not approved");
         Bond memory info = bondInfo[_recipient];
         uint256 percentVested = percentVestedFor(_recipient); // (blocks since last interaction / vesting term remaining)
 
@@ -1096,10 +1103,12 @@ contract BondDepository is Ownable {
      */
     function _bondPrice() internal returns (uint256 price_) {
         price_ = terms.controlVariable.mul(debtRatio()).add(1000000000).div(1e7);
-        if (price_ < terms.minimumPrice) {
-            price_ = terms.minimumPrice;
-        } else if (terms.minimumPrice != 0) {
-            terms.minimumPrice = 0;
+        if (terms.minimumPrice != 0) {
+            if (price_ < terms.minimumPrice) {
+                price_ = terms.minimumPrice;
+            } else {
+                terms.minimumPrice = 0;
+            }
         }
     }
 
