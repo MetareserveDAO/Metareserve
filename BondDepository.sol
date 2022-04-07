@@ -925,7 +925,7 @@ contract BondDepository is Ownable {
         require(payout >= 10000000, "Bond too small"); // must be > 0.01 POWER ( underflow protection )
         require(payout <= maxPayout(), "Bond too large"); // size protection because there is no slippage
         
-        require(totalDebt.add(payout) <= terms.maxDebt, "Max capacity reached");
+        require(totalDebt.add(value) <= terms.maxDebt, "Max capacity reached");
 
         // profits are calculated
         uint256 fee = payout.mul(terms.fee).div(10000);
